@@ -1,0 +1,95 @@
+/*Query 1 - query used for first insight*/
+SELECT c.first_name || ' ' || c.last_name AS fullname,
+  SUM(p.amount) FILTER (WHERE TO_CHAR (p.payment_date, 'Month') LIKE '%February%') as february,
+	SUM(p.amount) FILTER (WHERE TO_CHAR (p.payment_date, 'Month') LIKE '%March%') as March,
+	SUM(p.amount) FILTER (WHERE TO_CHAR (p.payment_date, 'Month') LIKE '%April%') as April,
+	COALESCE(SUM(p.amount) FILTER (WHERE TO_CHAR (p.payment_date, 'Month') LIKE '%May%'), 0) as May
+FROM payment p
+  JOIN customer c ON c.customer_id = p.customer_id
+GROUP BY 1
+ORDER BY SUM(p.amount) DESC
+LIMIT 10
+
+
+_____________________________________________________________________________________________________________
+
+/*Query 2 - query used for second insight*/
+WITH table1 AS (SELECT f.title as film_title, c.name as category_name, f.rental_duration as rental_duration
+    FROM film f
+    JOIN film_category fc ON f.film_id = fc.film_id
+    JOIN category c ON fc.category_id = c.category_id
+    WHERE c.name = 'Animation'
+          OR c.name = 'Children'
+          OR c.name = 'Classics'
+          OR c.name = 'Comedy'
+          OR c.name = 'Family'
+          OR c.name = 'Music'),
+
+    table2 AS (SELECT film_title, category_name, rental_duration,
+        NTILE(4) OVER(ORDER BY rental_duration) AS standard_quartile
+        FROM table1)
+
+SELECT table2.category_name, table2.standard_quartile, COUNT(*)
+FROM table2
+GROUP BY 1, 2
+ORDER BY 1, 2
+
+_______________________________________________________________________________________________________________
+
+/*Query 3 - query used for third insight*/
+SELECT *
+FROM(
+    SELECT TO_CHAR(payment_date, 'Day') as days,
+        COUNT(fc.category_id) FILTER(WHERE c.name = 'Action') as Action,
+        COUNT(fc.category_id) FILTER(WHERE c.name = 'Animation') as Animation,
+        COUNT(fc.category_id) FILTER(WHERE c.name = 'Children') as Children,
+        COUNT(fc.category_id) FILTER(WHERE c.name = 'Classics') as Classics,
+        COUNT(fc.category_id) FILTER(WHERE c.name = 'Comedy') as Comedy,
+        COUNT(fc.category_id) FILTER(WHERE c.name = 'Documentary') as Documentary,
+        COUNT(fc.category_id) FILTER(WHERE c.name = 'Drama') as Drama,
+        COUNT(fc.category_id) FILTER(WHERE c.name = 'Family') as Family,
+        COUNT(fc.category_id) FILTER(WHERE c.name = 'Foreign') as Foreign,
+        COUNT(fc.category_id) FILTER(WHERE c.name = 'Games') as Games,
+        COUNT(fc.category_id) FILTER(WHERE c.name = 'Horror') as Horror,
+        COUNT(fc.category_id) FILTER(WHERE c.name = 'Music') as Music,
+        COUNT(fc.category_id) FILTER(WHERE c.name = 'New') as New,
+        COUNT(fc.category_id) FILTER(WHERE c.name = 'Sci-Fi') as SciFi,
+        COUNT(fc.category_id) FILTER(WHERE c.name = 'Sports') as Sports,
+        COUNT(fc.category_id) FILTER(WHERE c.name = 'Travel')as Travel
+    FROM payment p
+        JOIN rental r ON r.rental_id = p.rental_id
+        JOIN inventory i ON i.inventory_id = r.inventory_id
+        JOIN film f ON f.film_id = i.film_id
+        JOIN film_category fc ON fc.film_id = f.film_id
+        JOIN category c ON fc.category_id = c.category_id
+    GROUP BY 1) sub
+
+ORDER BY CASE WHEN (days LIKE '%Monday%') THEN 0
+		 WHEN (days LIKE '%Tuesday%') THEN 1
+		 WHEN (days = 'Wednesday') THEN 2
+		 WHEN (days LIKE '%Thursday%') THEN 3
+		 WHEN (days LIKE '%Friday%') THEN 4
+		 WHEN (days LIKE '%Saturday%') THEN 5
+		 ELSE 6
+		 END
+
+________________________________________________________________________________________________________
+
+/*Query 4 - query used for fuorth insight*/
+
+SELECT *
+FROM(
+	SELECT TO_CHAR(p.payment_date, 'Month') as Months,
+		COUNT(rental_id) FILTER(WHERE store_id = 1) as Store_id_1,
+		COUNT(rental_id) FILTER(WHERE store_id = 2) as Store_id_2
+	FROM payment p
+		JOIN staff s ON s.staff_id = p.staff_id
+	GROUP BY 1) sub
+ORDER BY CASE
+  WHEN (Months LIKE '%February%') THEN 0
+	WHEN (Months LIKE '%March%') THEN 1
+	WHEN (Months LIKE '%April%') THEN 2
+	ELSE 3
+	END
+
+_________________________________________________________________________________________________________
